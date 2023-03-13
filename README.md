@@ -5,11 +5,6 @@
 
 Inference of [Facebook's LLaMA](https://github.com/facebookresearch/llama) model in pure C/C++
 
-**Hot topics**
-
-- Running on Windows: https://github.com/ggerganov/llama.cpp/issues/22
-- Fix Tokenizer / Unicode support: https://github.com/ggerganov/llama.cpp/issues/11
-
 ## Description
 
 The main goal is to run the model using 4-bit quantization on a MacBook
@@ -23,14 +18,14 @@ The main goal is to run the model using 4-bit quantization on a MacBook
 
 This was [hacked in an evening](https://github.com/ggerganov/llama.cpp/issues/33#issuecomment-1465108022) - I have no idea if it works correctly.
 Please do not make conclusions about the models based on the results from this implementation.
-For all I know, it can be completely wrong. This project is for educational purposes and is not going to be maintained properly.
-New features will probably be added mostly through community contributions, if any.
+For all I know, it can be completely wrong. This project is for educational purposes.
+New features will probably be added mostly through community contributions.
 
 Supported platforms:
 
 - [X] Mac OS
 - [X] Linux
-- [ ] Windows (soon)
+- [X] Windows (via CMake)
 
 ---
 
@@ -145,43 +140,15 @@ python3 -m pip install torch numpy sentencepiece
 python3 convert-pth-to-ggml.py models/7B/ 1
 
 # quantize the model to 4-bits
-./quantize ./models/7B/ggml-model-f16.bin ./models/7B/ggml-model-q4_0.bin 2
+./quantize.sh 7B
 
 # run the inference
 ./main -m ./models/7B/ggml-model-q4_0.bin -t 8 -n 128
 ```
 
-For the bigger models, there are a few extra quantization steps. For example, for LLaMA-13B, converting to FP16 format
-will create 2 ggml files, instead of one:
-
-```bash
-ggml-model-f16.bin
-ggml-model-f16.bin.1
-```
-
-You need to quantize each of them separately like this:
-
-```bash
-./quantize ./models/13B/ggml-model-f16.bin   ./models/13B/ggml-model-q4_0.bin 2
-./quantize ./models/13B/ggml-model-f16.bin.1 ./models/13B/ggml-model-q4_0.bin.1 2
-```
-
-Everything else is the same. Simply run:
-
-```bash
-./main -m ./models/13B/ggml-model-q4_0.bin -t 8 -n 128
-```
-
-The number of files generated for each model is as follows:
-
-```
-7B  -> 1 file
-13B -> 2 files
-30B -> 4 files
-65B -> 8 files
-```
-
 When running the larger models, make sure you have enough disk space to store all the intermediate files.
+
+TODO: add model disk/mem requirements
 
 ### Interactive mode
 
@@ -207,10 +174,6 @@ Note the use of `--color` to distinguish between user input and generated text.
 
 ## Limitations
 
-- Not sure if my tokenizer is correct. There are a few places where we might have a mistake:
-  - https://github.com/ggerganov/llama.cpp/blob/26c084662903ddaca19bef982831bfb0856e8257/convert-pth-to-ggml.py#L79-L87
-  - https://github.com/ggerganov/llama.cpp/blob/26c084662903ddaca19bef982831bfb0856e8257/utils.h#L65-L69
-  In general, it seems to work, but I think it fails for unicode character support. Hopefully, someone can help with that
 - I don't know yet how much the quantization affects the quality of the generated text
 - Probably the token sampling can be improved
 - The Accelerate framework is actually currently unused since I found that for tensor shapes typical for the Decoder,
@@ -218,3 +181,17 @@ Note the use of `--color` to distinguish between user input and generated text.
   know how to utilize it properly. But in any case, you can even disable it with `LLAMA_NO_ACCELERATE=1 make` and the
   performance will be the same, since no BLAS calls are invoked by the current implementation
 
+### Contributing
+
+- Contributors can open PRs
+- Collaborators can push to branches in the `llama.cpp` repo
+- Collaborators will be invited based on contributions
+
+### Coding guide-lines
+
+- Avoid adding third-party dependencies, extra files, extra headers, etc.
+- Always consider cross-compatibility with other operating systems and architectures
+- Avoid fancy looking modern STL constructs, use basic for loops, avoid templates, keep it simple
+- There are no strict rules for the code style, but try to follow the patterns in the code (indentation, spaces, etc.). Vertical alignment makes things more readable and easier to batch edit
+- Clean-up any tailing whitespaces, use 4 spaces indentation, brackets on same line, `int * var`
+- Look at the [good first issues](https://github.com/ggerganov/llama.cpp/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) for tasks

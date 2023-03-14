@@ -155,8 +155,6 @@ bool llama_model_load(const std::string & fname, llama_model & model, sentencepi
             return false;
         }
 
-        printf("total pieces: %d", sp.GetPieceSize());
-
         std::string word;
         for (int i = 0; i < n_vocab; i++) {
             uint32_t len;
@@ -993,10 +991,10 @@ int main(int argc, char ** argv) {
 
         // display text
         if (!input_noecho) {
-            for (auto id : embd) {
-                untokenize(sp, buffids, embd);
-                //printf("%s", vocab.id_to_token[id].c_str());
-            }
+            untokenize(sp, buffids, embd);
+            // for (auto id : embd) {                
+            //     printf("%s", vocab.id_to_token[id].c_str());
+            // }
             fflush(stdout);
         }
 

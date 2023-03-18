@@ -77,7 +77,7 @@ std::vector<gpt_vocab::id> gpt_tokenize(const gpt_vocab & vocab, const std::stri
 // TODO: this is probably wrong, but I cannot figure out how this tokenizer works ..
 // ref: https://github.com/google/sentencepiece
 std::vector<gpt_vocab::id> llama_tokenize(const gpt_vocab & vocab, const std::string & text, bool bos);
-
+std::vector<gpt_vocab::id> llama_tokenize_utf8(const gpt_vocab & vocab, sentencepiece::SentencePieceProcessor & sp, const std::string & text, bool bos);
 // load the tokens from encoder.json
 bool gpt_vocab_init(const std::string & fname, gpt_vocab & vocab);
 

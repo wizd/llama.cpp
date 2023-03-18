@@ -16,7 +16,7 @@
 # At the start of the ggml file we write the model parameters
 # and vocabulary.
 #
-
+import os
 import sys
 import json
 import struct
@@ -64,6 +64,10 @@ if len(sys.argv) > 2:
         sys.exit(1)
     fname_out = sys.argv[1] + "/ggml-model-" + ftype_str[ftype] + ".bin"
 
+if os.path.exists(fname_out):
+    print(f"Skip conversion, it already exists: {fname_out}")
+    sys.exit(0)
+
 with open(fname_hparams, "r") as f:
     hparams = json.load(f)
 
@@ -99,7 +103,7 @@ for p in range(n_parts):
     fout.write(struct.pack("i", ftype))
 
     # Is this correct??
-    for i in range(32000):
+    for i in range(tokenizer.vocab_size()):
         if tokenizer.is_unknown(i):
             # "<unk>" token (translated as ??)
             text = " \u2047 ".encode("utf-8")

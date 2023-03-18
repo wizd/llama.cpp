@@ -20,6 +20,8 @@
 #if defined (__unix__) || (defined (__APPLE__) && defined (__MACH__))
 #include <signal.h>
 #include <unistd.h>
+#elif defined (_WIN32)
+#include <signal.h>
 #endif
 
 #define ANSI_COLOR_RED     "\x1b[31m"
@@ -554,6 +556,8 @@ bool llama_eval(
 
     const int d_key = n_embd/n_head;
 
+     // TODO: check if this size scales with n_ctx linearly and remove constant. somehow I feel it wasn't the case
+    // static size_t buf_size = hparams.n_ctx*1024*1024;
     static size_t buf_size = 512u*1024*1024;
     static void * buf = malloc(buf_size);
 
@@ -591,7 +595,7 @@ bool llama_eval(
 
         // norm
         {
-            cur = ggml_norm(ctx0, inpL);
+            cur = ggml_rms_norm(ctx0, inpL);
 
             // cur = attention_norm*cur
             cur = ggml_mul(ctx0,
@@ -681,7 +685,7 @@ bool llama_eval(
         {
             // norm
             {
-                cur = ggml_norm(ctx0, inpFF);
+                cur = ggml_rms_norm(ctx0, inpFF);
 
                 // cur = ffn_norm*cur
                 cur = ggml_mul(ctx0,
@@ -716,7 +720,7 @@ bool llama_eval(
 
     // norm
     {
-        inpL = ggml_norm(ctx0, inpL);
+        inpL = ggml_rms_norm(ctx0, inpL);
 
         // inpL = norm*inpL
         inpL = ggml_mul(ctx0,
@@ -760,8 +764,9 @@ bool llama_eval(
 
 static bool is_interacting = false;
 
-#if defined (__unix__) || (defined (__APPLE__) && defined (__MACH__))
+#if defined (__unix__) || (defined (__APPLE__) && defined (__MACH__)) || defined (_WIN32)
 void sigint_handler(int signo) {
+    printf(ANSI_COLOR_RESET);
     if (signo == SIGINT) {
         if (!is_interacting) {
             is_interacting=true;
@@ -828,8 +833,7 @@ int main(int argc, char ** argv) {
     // load the model
     {
         const int64_t t_start_us = ggml_time_us();
-
-        if (!llama_model_load(params.model, model, sp, vocab, 512)) {  // TODO: set context from user input ??
+        if (!llama_model_load(params.model, model, sp, vocab, params.n_ctx)) {  
             fprintf(stderr, "%s: failed to load model from '%s'\n", __func__, params.model.c_str());
             return 1;
         }
@@ -851,6 +855,8 @@ int main(int argc, char ** argv) {
 
     std::vector<float> logits;
 
+    // Add a space in front of the first character to match OG llama tokenizer behavior
+    params.prompt.insert(0, 1, ' ');
     // tokenize the prompt
     std::vector<gpt_vocab::id> embd_inp = ::llama_tokenize(vocab, params.prompt, true);
 
@@ -873,6 +879,8 @@ int main(int argc, char ** argv) {
         sigemptyset (&sigint_action.sa_mask);
         sigint_action.sa_flags = 0;
         sigaction(SIGINT, &sigint_action, NULL);
+#elif defined (_WIN32)
+        signal(SIGINT, sigint_handler);
 #endif
 
         fprintf(stderr, "%s: interactive mode on.\n", __func__);
@@ -902,7 +910,7 @@ int main(int argc, char ** argv) {
 
     if (params.interactive) {
         fprintf(stderr, "== Running in interactive mode. ==\n"
-#if defined (__unix__) || (defined (__APPLE__) && defined (__MACH__))
+#if defined (__unix__) || (defined (__APPLE__) && defined (__MACH__)) || defined (_WIN32)
                " - Press Ctrl+C to interject at any time.\n"
 #endif
                " - Press Return to return control to LLaMa.\n"
@@ -1050,6 +1058,9 @@ int main(int argc, char ** argv) {
         }
     }
 
+#if defined (_WIN32)
+    signal(SIGINT, SIG_DFL);
+#endif
 
     // report timing
     {
@@ -1064,6 +1075,10 @@ int main(int argc, char ** argv) {
     }
 
     ggml_free(model.ctx);
+
+    if (params.use_color) {
+        printf(ANSI_COLOR_RESET);
+    }
 
     return 0;
 }
